@@ -1,20 +1,110 @@
 use minifb::{Key, Window, WindowOptions};
+use rand::Rng;
 
 const WIDTH: usize = 1400;
 const HEIGHT: usize = 800;
 const PADDLE_WIDTH: usize = 50;
 const PADDLE_HEIGHT: usize = 120;
-struct Rect {
-    position: Vec2,
-    dimensions: Vec2,
-    velocity: Vec2,
-    acceleration: Vec2,
+const BALL_WIDTH: usize = 40;
+const PADDLE_SPEED: f64 = 1.0;
+const DRAG: f64 = 0.85; // scales from 0 - 1
+const MAX_SPEED: f64 = 10.0;
+
+#[derive(Debug)]
+struct Player {
+    position: Vector2,
+    dimensions: Vector2,
+    velocity: Vector2,
+    acceleration: Vector2,
     color: u32,
 }
 
-struct Vec2 {
+impl Player {
+    fn new(x: f64, y: f64, w: f64, h: f64, vx: f64, vy: f64, ax: f64, ay: f64, color: u32) -> Self {
+        Self {
+            position: Vector2::new(x, y),
+            dimensions: Vector2::new(w, h),
+            velocity: Vector2::new(vx, vy),
+            acceleration: Vector2::new(ax, ay),
+            color,
+        }
+    }
+
+    // eulerian physics update thing
+    fn update(&mut self) {
+        self.velocity.x += self.acceleration.x;
+        self.velocity.y += self.acceleration.y;
+        self.position.x += self.velocity.x;
+        self.position.y += self.velocity.y;
+        //drag
+        self.velocity.x *= DRAG;
+        self.velocity.y *= DRAG;
+        // clamp
+        self.velocity.y = if self.velocity.y >= MAX_SPEED {
+            MAX_SPEED
+        } else {
+            self.velocity.y
+        };
+        self.velocity.x = if self.velocity.x >= MAX_SPEED {
+            MAX_SPEED
+        } else {
+            self.velocity.x
+        };
+        self.acceleration.x = 0.0;
+        self.acceleration.y = 0.0;
+        self.constrain();
+    }
+
+    // draws a rectangle starting in the top left think cartesian but y axis flipped
+    // could bug when coords are negative ,usize?
+    fn draw_rectangle(&self, buffer: &mut Vec<u32>) {
+        for i in self.position.x as usize..self.position.x as usize + self.dimensions.x as usize {
+            for j in self.position.y as usize..self.position.y as usize + self.dimensions.y as usize
+            {
+                let index = j * WIDTH + i;
+                if index >= WIDTH * HEIGHT {
+                    dbg!("error with rec pos");
+                    break;
+                }
+                buffer[index] = self.color;
+            }
+        }
+    }
+    fn constrain(&mut self) {
+        self.position.y = if self.position.y > (HEIGHT - PADDLE_HEIGHT) as f64 {
+            (HEIGHT - PADDLE_HEIGHT) as f64
+        } else {
+            self.position.y
+        };
+        self.position.y = if self.position.y <= 0 as f64 {
+            0.0
+        } else {
+            self.position.y
+        };
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct Vector2 {
     x: f64,
     y: f64,
+}
+
+impl Vector2 {
+    fn new(x: f64, y: f64) -> Self {
+        Vector2 { x, y }
+    }
+
+    fn magnitude(&self) -> f64 {
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
+    }
+
+    fn add(&self, other: Vector2) -> Vector2 {
+        Vector2 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
 }
 fn main() {
     // main vars
@@ -22,17 +112,41 @@ fn main() {
     let game_color: u32 = from_u8_rgb(144, 233, 60);
     let background_color: u32 = from_u8_rgb(0, 0, 0);
 
-    // let mut player1 = make_rect(
-    //     0.0,
-    //     (HEIGHT / 2) as f64,
-    //     PADDLE_WIDTH as f64,
-    //     PADDLE_HEIGHT as f64,
-    //     0.0,
-    //     0.0,
-    //     0.0,
-    //     0.0,
-    //     game_color,
-    // );
+    let mut player1 = Player::new(
+        0.0,
+        (HEIGHT / 2 - PADDLE_HEIGHT / 2) as f64,
+        PADDLE_WIDTH as f64,
+        PADDLE_HEIGHT as f64,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        game_color,
+    );
+
+    let mut player2 = Player::new(
+        (WIDTH - PADDLE_WIDTH) as f64,
+        (HEIGHT / 2 - PADDLE_HEIGHT / 2) as f64,
+        PADDLE_WIDTH as f64,
+        PADDLE_HEIGHT as f64,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        game_color,
+    );
+
+    let mut ball = Player::new(
+        (WIDTH / 2 - BALL_WIDTH / 2) as f64,
+        (HEIGHT / 2 - BALL_WIDTH / 2) as f64,
+        BALL_WIDTH as f64,
+        BALL_WIDTH as f64,
+        rand_between_0_and_1(10.0),
+        rand_between_0_and_1(10.0),
+        0.0,
+        0.0,
+        game_color,
+    );
 
     let mut window = Window::new("Pong Game", WIDTH, HEIGHT, WindowOptions::default())
         .unwrap_or_else(|e| {
@@ -46,7 +160,26 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         background(&mut buffer, background_color);
 
-        draw_rect(&mut buffer, 1350, 750, 50, 50, game_color);
+        // handle all keypress events
+        window.get_keys().iter().for_each(|key| match key {
+            Key::W => player1.acceleration.y = -PADDLE_SPEED,
+            Key::S => player1.acceleration.y = PADDLE_SPEED,
+            Key::Up => player2.acceleration.y = -PADDLE_SPEED,
+            Key::Down => player2.acceleration.y = PADDLE_SPEED,
+            _ => (),
+        });
+
+        player1.draw_rectangle(&mut buffer);
+        player2.draw_rectangle(&mut buffer);
+        ball.draw_rectangle(&mut buffer);
+
+        player1.update();
+        player2.update();
+
+        ball.velocity.x += ball.acceleration.x;
+        ball.velocity.y += ball.acceleration.y;
+        ball.position.x += ball.velocity.x;
+        ball.position.y += ball.velocity.y;
 
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
@@ -58,19 +191,6 @@ fn from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
     (r << 16) | (g << 8) | b
 }
 
-// draws a draw_rectangle starting in the top left
-fn draw_rect(buffer: &mut Vec<u32>, x: usize, y: usize, w: usize, h: usize, color: u32) {
-    for i in x..x + w {
-        for j in y..y + h {
-            let index = j * WIDTH + i;
-            if index > WIDTH * HEIGHT {
-                println!("error with rec pos");
-                break;
-            }
-            buffer[index] = color;
-        }
-    }
-}
 // draws background
 fn background(buffer: &mut Vec<u32>, color: u32) {
     for i in buffer.iter_mut() {
@@ -78,26 +198,13 @@ fn background(buffer: &mut Vec<u32>, color: u32) {
     }
 }
 
-// fn make_rect(
-//     x: f64,
-//     y: f64,
-//     w: f64,
-//     h: f64,
-//     vx: f64,
-//     vy: f64,
-//     ax: f64,
-//     ay: f64,
-//     color: u32,
-// ) -> Rect {
-//     Rect {
-//         x,
-//         y,
-//         w,
-//         h,
-//         vx,
-//         vy,
-//         ax,
-//         ay,
-//         color,
-//     }
-// }
+fn rand_between_0_and_1(scale: f64) -> f64 {
+    let mut rng = rand::thread_rng();
+    let num1: f64 = rng.gen();
+    let num2: f64 = rng.gen();
+    if num1 >= 0.5 {
+        num2 * scale
+    } else {
+        -1.0 * num2 * scale
+    }
+}
