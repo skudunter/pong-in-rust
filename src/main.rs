@@ -3,13 +3,13 @@ use rand::Rng;
 
 const WIDTH: usize = 1400;
 const HEIGHT: usize = 800;
-const PADDLE_WIDTH: usize = 50;
+const PADDLE_WIDTH: usize = 30;
 const PADDLE_HEIGHT: usize = 120;
 const BALL_WIDTH: usize = 40;
 const PADDLE_SPEED: f64 = 1.0;
 const DRAG: f64 = 0.85; // scales from 0 - 1
 const MAX_SPEED: f64 = 10.0;
-const SPEED_INCREASE: f64 = 1.0;
+const SPEED_INCREASE: f64 = 1.5;
 
 #[derive(Debug)]
 struct Player {
@@ -99,10 +99,10 @@ impl Vector2 {
 fn main() {
     // main vars
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
-    let game_color: u32 = from_u8_rgb(144, 233, 60);
+    let game_color: u32 = from_u8_rgb(255, 255, 255);
     let background_color: u32 = from_u8_rgb(0, 0, 0);
-    let mut player1_score = 0;
-    let mut player2_score = 0;
+    let mut _player1_score = 0;
+    let mut _player2_score = 0;
 
     let mut player1 = Player::new(
         0.0,
@@ -195,7 +195,7 @@ fn main() {
             ball.position.x = player1.position.x + player1.dimensions.x;
             -ball.velocity.x * SPEED_INCREASE
         } else {
-            ball.velocity.x 
+            ball.velocity.x
         };
 
         ball.velocity.x = if (ball.position.y >= player2.position.y
@@ -205,11 +205,11 @@ fn main() {
             ball.position.x = player2.position.x - ball.dimensions.x;
             -ball.velocity.x * SPEED_INCREASE
         } else {
-            ball.velocity.x 
+            ball.velocity.x
         };
 
         // score points
-        player1_score += if ball.position.x <= 0.0 {
+        _player1_score += if ball.position.x <= 0.0 {
             ball.position = Vector2::new(
                 (WIDTH / 2 - BALL_WIDTH / 2) as f64,
                 (HEIGHT / 2 - BALL_WIDTH / 2) as f64,
@@ -219,7 +219,7 @@ fn main() {
         } else {
             0
         };
-        player2_score += if ball.position.x + ball.dimensions.x >= WIDTH as f64 {
+        _player2_score += if ball.position.x + ball.dimensions.x >= WIDTH as f64 {
             ball.position = Vector2::new(
                 (WIDTH / 2 - BALL_WIDTH / 2) as f64,
                 (HEIGHT / 2 - BALL_WIDTH / 2) as f64,
