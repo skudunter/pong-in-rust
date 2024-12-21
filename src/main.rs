@@ -4,12 +4,12 @@ use rand::Rng;
 const WIDTH: usize = 1400;
 const HEIGHT: usize = 800;
 const PADDLE_WIDTH: usize = 30;
-const PADDLE_HEIGHT: usize = 120;
+const PADDLE_HEIGHT: usize = 140;
 const BALL_WIDTH: usize = 40;
-const PADDLE_SPEED: f64 = 1.0;
+const PADDLE_SPEED: f64 = 1.5;
 const DRAG: f64 = 0.85; // scales from 0 - 1
 const MAX_SPEED: f64 = 10.0;
-const SPEED_INCREASE: f64 = 1.5;
+const SPEED_INCREASE: f64 = 1.15;
 
 #[derive(Debug)]
 struct Player {
