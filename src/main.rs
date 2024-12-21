@@ -9,6 +9,7 @@ const BALL_WIDTH: usize = 40;
 const PADDLE_SPEED: f64 = 1.0;
 const DRAG: f64 = 0.85; // scales from 0 - 1
 const MAX_SPEED: f64 = 10.0;
+const SPEED_INCREASE: f64 = 1.0;
 
 #[derive(Debug)]
 struct Player {
@@ -94,23 +95,14 @@ impl Vector2 {
     fn new(x: f64, y: f64) -> Self {
         Vector2 { x, y }
     }
-
-    fn magnitude(&self) -> f64 {
-        (self.x.powi(2) + self.y.powi(2)).sqrt()
-    }
-
-    fn add(&self, other: Vector2) -> Vector2 {
-        Vector2 {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
 }
 fn main() {
     // main vars
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let game_color: u32 = from_u8_rgb(144, 233, 60);
     let background_color: u32 = from_u8_rgb(0, 0, 0);
+    let mut player1_score = 0;
+    let mut player2_score = 0;
 
     let mut player1 = Player::new(
         0.0,
@@ -142,7 +134,7 @@ fn main() {
         BALL_WIDTH as f64,
         BALL_WIDTH as f64,
         rand_between_0_and_1(10.0),
-        rand_between_0_and_1(10.0),
+        rand_between_0_and_1(5.0),
         0.0,
         0.0,
         game_color,
@@ -180,6 +172,63 @@ fn main() {
         ball.velocity.y += ball.acceleration.y;
         ball.position.x += ball.velocity.x;
         ball.position.y += ball.velocity.y;
+
+        //handle collisons w walls
+        ball.velocity.y = if ball.position.y > (HEIGHT - BALL_WIDTH) as f64 {
+            ball.position.y = (HEIGHT - BALL_WIDTH) as f64;
+            -ball.velocity.y
+        } else {
+            ball.velocity.y
+        };
+        ball.velocity.y = if ball.position.y <= 0 as f64 {
+            ball.position.y = 0.0;
+            -ball.velocity.y
+        } else {
+            ball.velocity.y
+        };
+
+        // handle collions w paddles
+        ball.velocity.x = if (ball.position.y >= player1.position.y
+            && ball.position.y <= player1.position.y + player1.dimensions.y)
+            && player1.position.x + player1.dimensions.x >= ball.position.x
+        {
+            ball.position.x = player1.position.x + player1.dimensions.x;
+            -ball.velocity.x * SPEED_INCREASE
+        } else {
+            ball.velocity.x 
+        };
+
+        ball.velocity.x = if (ball.position.y >= player2.position.y
+            && ball.position.y <= player2.position.y + player1.dimensions.y)
+            && player2.position.x <= ball.position.x + ball.dimensions.x
+        {
+            ball.position.x = player2.position.x - ball.dimensions.x;
+            -ball.velocity.x * SPEED_INCREASE
+        } else {
+            ball.velocity.x 
+        };
+
+        // score points
+        player1_score += if ball.position.x <= 0.0 {
+            ball.position = Vector2::new(
+                (WIDTH / 2 - BALL_WIDTH / 2) as f64,
+                (HEIGHT / 2 - BALL_WIDTH / 2) as f64,
+            );
+            ball.velocity = Vector2::new(rand_between_0_and_1(10.0), rand_between_0_and_1(5.0));
+            1
+        } else {
+            0
+        };
+        player2_score += if ball.position.x + ball.dimensions.x >= WIDTH as f64 {
+            ball.position = Vector2::new(
+                (WIDTH / 2 - BALL_WIDTH / 2) as f64,
+                (HEIGHT / 2 - BALL_WIDTH / 2) as f64,
+            );
+            ball.velocity = Vector2::new(rand_between_0_and_1(10.0), rand_between_0_and_1(5.0));
+            1
+        } else {
+            0
+        };
 
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
