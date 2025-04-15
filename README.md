@@ -1,6 +1,6 @@
 # Pong
 
-This code was fully writen in rust makeing it my first project coded in rust.
+This code was fully writen in rust making it my first project coded in rust.
 I used my basic knowledge of rust and minifb for the frontend
 
 ## Code
